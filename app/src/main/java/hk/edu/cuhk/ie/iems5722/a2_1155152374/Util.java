@@ -1,6 +1,7 @@
 package hk.edu.cuhk.ie.iems5722.a2_1155152374;
 
 import android.net.Uri;
+import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -157,7 +158,7 @@ public class Util {
             os.close();
             int responseCode = conn.getResponseCode();
             if (responseCode == HttpURLConnection.HTTP_OK) {
-                System.out.print(conn.getResponseMessage());
+               // Log.e("msg", conn.getHeaderField("json") );
             }
             return message;
         }catch (Exception e){

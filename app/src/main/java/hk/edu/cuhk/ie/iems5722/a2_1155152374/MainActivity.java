@@ -1,8 +1,12 @@
 package hk.edu.cuhk.ie.iems5722.a2_1155152374;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Message;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -10,29 +14,38 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
-import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity {
+import io.socket.client.IO;
+import io.socket.client.Socket;
+import io.socket.emitter.Emitter;
 
+public class MainActivity extends AppCompatActivity {
+    private Socket socket;
+    private static final int ACTION_CONNECTED = 1;
+    private static final int ACTION_JOIN = 2;
+    private static final int ACTION_UPDATE = 3;
+    private static final int ACTION_BROADCAST = 4;
+    private static final int ACTION_LEAVE = 5;
+    private static final int ACTION_MYEVENT = 6;
+    private MainHandler handler = new MainHandler(this);
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
+        createNotificationChannel();
         ListView lv = findViewById(R.id.main_lv);
         ChatRoomAdapter mchatroomadapter;
         ArrayList<Util.chatroom> chatrooms = new ArrayList<>();
@@ -41,34 +54,15 @@ public class MainActivity extends AppCompatActivity {
 
         get_ChatroomsTask c = new get_ChatroomsTask(mchatroomadapter, chatrooms);
         c.execute();
-              /*  new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        String s = Util.get_chatrooms();
-                        JSONObject json = null;
-                        try {
-                            json = new JSONObject(s);
-                            JSONArray array = json.getJSONArray("data");
-                            for(int i=0; i<array.length(); i++){
-                                String name = array.getJSONObject(i).getString("name");
-                                int id = array.getJSONObject(i).getInt("id");
-                                chatrooms.add(new chatroom(id, name));
 
-                            }
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-                        //String status = json.getString("status" ) ;
-
-                        lv.post(new Runnable() {
-                            @Override
-                            public void run() {
-                                mchatroomadapter.notifyDataSetChanged();
-                                //test_tv.setText(s);
-                            }
-                        });
-                    }
-                }).start();*/
+        try {
+            socket = IO.socket("http://18.222.138.26:8001/");
+            socket.on(Socket.EVENT_CONNECT, onConnectSuccess);
+            socket.on("myevent", onMyevent);
+            socket.connect();
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
 
                 lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                     @Override
@@ -155,4 +149,52 @@ public class MainActivity extends AppCompatActivity {
 
         return super.onOptionsItemSelected(item);
     }
+
+    private void createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is new and not in the support library
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = "hello";
+            String description = "hello";
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel("1", name, importance);
+            channel.setDescription(description);
+            // Register the channel with the system; you can't change the importance
+            // or other notification behaviors after this
+            NotificationManager notificationManager = getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
+    }
+
+    private Emitter.Listener onConnectSuccess = new Emitter.Listener() {
+        @Override
+        public void call ( Object... args) {
+            Message msg = handler.obtainMessage(ACTION_CONNECTED, "Connected");
+            msg.sendToTarget();
+        }
+    } ;
+
+
+
+    private Emitter.Listener onMyevent = new Emitter.Listener() {
+        @Override
+        public void call ( Object... args) {
+            try {
+                JSONObject data = (JSONObject) args [0];
+                String text = data.getString("message" );
+                int chatroom_id = data.getInt("chatroom_id" );
+                Message msg = handler.obtainMessage(ACTION_MYEVENT, data );
+                msg.sendToTarget();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } }
+    } ;
+
+    @Override
+    protected void onDestroy() {
+        socket.disconnect( ) ;
+        socket.off();
+        super.onDestroy();
+    }
+
 }

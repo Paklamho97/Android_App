@@ -2,7 +2,6 @@ package hk.edu.cuhk.ie.iems5722.a2_1155152374;
 
 import android.content.Context;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.Message;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -21,25 +20,20 @@ import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
-import java.lang.ref.WeakReference;
 import java.net.URISyntaxException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 import io.socket.client.IO;
 import io.socket.client.Socket;
 import io.socket.emitter.Emitter;
-import android.os.Handler;
-import android.os.Message;
 
 public class ChatActivity extends AppCompatActivity {
 
-    private ArrayList<Util.Msg> msgs;
+    public ArrayList<Util.Msg> msgs;
     private EditText input;
-    private MyAdapter myAdapter;
+    public MyAdapter myAdapter;
     private ListView lv;
     private ImageButton send;
     private int id;
@@ -52,7 +46,7 @@ public class ChatActivity extends AppCompatActivity {
     private static final int ACTION_UPDATE = 3;
     private static final int ACTION_BROADCAST = 4;
     private static final int ACTION_LEAVE = 5;
-    private MainHandler handler = new MainHandler(this);
+    private ChatHandler handler = new ChatHandler(this);
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -285,44 +279,7 @@ public class ChatActivity extends AppCompatActivity {
     }
 
 
-    private static class MainHandler extends Handler {
-        private final WeakReference<ChatActivity> chatActivity;
 
-        MainHandler(ChatActivity activity) {
-            this.chatActivity = new WeakReference<>(activity);
-        }
-        @Override
-        public void handleMessage(Message msg) {
-            ChatActivity activity = chatActivity.get();
-            long ms = System.currentTimeMillis();
-            SimpleDateFormat dateFormat = new SimpleDateFormat("hh:mm");
-            String date = dateFormat.format(new Date(ms));
-            switch (msg.what) {
-                case ACTION_CONNECTED:
-                    activity.msgs.add(new Util.Msg((String) msg.obj, date, 0));
-                    activity.myAdapter.notifyDataSetChanged();
-                    break;
-                case ACTION_UPDATE:
-                    //activity.output.setText((String) msg.obj);
-                    break;
-                case ACTION_JOIN:
-                    activity.msgs.add(new Util.Msg(msg.obj.toString(), date, 0));
-                    activity.myAdapter.notifyDataSetChanged();
-                    break;
-                case ACTION_BROADCAST:
-                    activity.msgs.add(new Util.Msg(msg.obj.toString(), date, 0));
-                    activity.myAdapter.notifyDataSetChanged();
-                    break;
-                case ACTION_LEAVE:
-                    activity.msgs.add(new Util.Msg(msg.obj.toString(), date, 0));
-                    activity.myAdapter.notifyDataSetChanged();
-                    break;
-                default:
-                super.handleMessage(msg);
-            } }
-
-
-    }
 
     private Emitter.Listener onConnectSuccess = new Emitter.Listener() {
         @Override
@@ -352,7 +309,7 @@ public class ChatActivity extends AppCompatActivity {
                 JSONObject data = (JSONObject) args [0];
                 String text = data.getString("message" );
                 int chatroom_id = data.getInt("chatroom_id" );
-                Message msg = handler.obtainMessage(ACTION_BROADCAST, text );
+                Message msg = handler.obtainMessage(ACTION_BROADCAST, data );
                 msg.sendToTarget();
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -392,6 +349,7 @@ public class ChatActivity extends AppCompatActivity {
         }
         super.onDestroy();
     }
+
 
 
 }
